@@ -14,7 +14,7 @@ import threading
 import codecs
 
 
-def gendevice(devtype, host, mac):
+def gendevice(devtype, host, mac, name):
   devices = {
           sp1: [0],
           sp2: [0x2711,                          # SP2
@@ -55,8 +55,8 @@ def gendevice(devtype, host, mac):
   # Look for the class associated to devtype in devices
   [deviceClass] = [dev for dev in devices if devtype in devices[dev]] or [None]
   if deviceClass is None:
-    return device(host=host, mac=mac, devtype=devtype)
-  return deviceClass(host=host, mac=mac, devtype=devtype)
+    return device(host=host, mac=mac, devtype=devtype, name=name)
+  return deviceClass(host=host, mac=mac, devtype=devtype, name=name)
 
 def discover(timeout=None, local_ip_address=None):
   if local_ip_address is None:
@@ -118,10 +118,11 @@ def discover(timeout=None, local_ip_address=None):
     responsepacket = bytearray(response[0])
     host = response[1]
     mac = responsepacket[0x3a:0x40]
+    name = responsepacket[0x40:0x40+32].split('\0', 1)[0].decode("utf-8").replace("|1","").replace("|2","").replace("|6","")
     devtype = responsepacket[0x34] | responsepacket[0x35] << 8
 
 
-    return gendevice(devtype, host, mac)
+    return gendevice(devtype, host, mac, name)
   else:
     while (time.time() - starttime) < timeout:
       cs.settimeout(timeout - (time.time() - starttime))
@@ -133,17 +134,19 @@ def discover(timeout=None, local_ip_address=None):
       host = response[1]
       devtype = responsepacket[0x34] | responsepacket[0x35] << 8
       mac = responsepacket[0x3a:0x40]
-      dev = gendevice(devtype, host, mac)
+      name = responsepacket[0x40:0x40+32].split('\0', 1)[0].decode("utf-8").replace("|1","").replace("|2","").replace("|6","")
+      dev = gendevice(devtype, host, mac, name)
       devices.append(dev)
     return devices
 
 
 
 class device:
-  def __init__(self, host, mac, devtype, timeout=10):
+  def __init__(self, host, mac, devtype, name, timeout=10):
     self.host = host
     self.mac = mac
     self.devtype = devtype
+    self.name = name
     self.timeout = timeout
     self.count = random.randrange(0xffff)
     self.key = bytearray([0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
@@ -292,8 +295,8 @@ class device:
 
 
 class mp1(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "MP1"
 
   def set_power_mask(self, sid_mask, state):
@@ -355,8 +358,8 @@ class mp1(device):
 
 
 class sp1(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "SP1"
 
   def set_power(self, state):
@@ -366,8 +369,8 @@ class sp1(device):
 
 
 class sp2(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "SP2"
 
   def set_power(self, state):
@@ -444,8 +447,8 @@ class sp2(device):
 
 
 class a1(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "A1"
 
   def check_sensors(self):
@@ -522,8 +525,8 @@ class a1(device):
 
 
 class rm(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "RM2"
 
   def check_data(self):
@@ -571,8 +574,8 @@ class rm2(rm):
 
 
 class hysen(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "Hysen heating controller"
 
   # Send a request
@@ -799,8 +802,8 @@ class S1C(device):
 
 
 class dooya(device):
-  def __init__ (self, host, mac, devtype):
-    device.__init__(self, host, mac, devtype)
+  def __init__ (self, host, mac, devtype, name):
+    device.__init__(self, host, mac, devtype, name)
     self.type = "Dooya DT360E"
 
   def _send(self, magic1, magic2):
